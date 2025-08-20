@@ -1,0 +1,18 @@
+{
+  "questions": [
+    { "id": "q1", "text": "¿Este cambio crea o modifica un endpoint o ruta accesible?", "weight": 1, "riskType": "Superficie nueva", "riskWhen": "yes" },
+    { "id": "q2", "text": "¿Es accesible desde Internet o por usuarios externos?", "weight": 2, "riskType": "Exposición externa", "riskWhen": "yes" },
+    { "id": "q3", "text": "¿Requiere login, token, JWT o manejo de sesión?", "weight": 1, "riskType": "Lógica de sesión", "riskWhen": "yes" },
+    { "id": "q4", "text": "¿Afecta control de roles, permisos o lógica de autorización?", "weight": 2, "riskType": "Autorización / acceso", "riskWhen": "yes" },
+    { "id": "q5", "text": "¿Procesa o expone datos sensibles (PII, credenciales, financieros)?", "weight": 3, "riskType": "Confidencialidad", "riskWhen": "yes" },
+    { "id": "q6", "text": "¿Permite operaciones críticas (altas, bajas, transferencias, privilegios)?", "weight": 3, "riskType": "Impacto funcional", "riskWhen": "yes" },
+    { "id": "q7", "text": "¿Recibe entradas complejas (uploads, URLs, archivos, input libre)?", "weight": 2, "riskType": "Riesgo de entrada", "riskWhen": "yes" },
+    { "id": "q8", "text": "¿Valida correctamente todas las entradas en backend?", "weight": 2, "riskType": "Ausencia de validación", "riskWhen": "no_or_unknown" },
+    { "id": "q9", "text": "¿Consume APIs externas, SDKs o servicios nuevos?", "weight": 1, "riskType": "Integración externa", "riskWhen": "yes" },
+    { "id": "q10", "text": "¿Requiere configuración, secretos o acceso a infraestructura?", "weight": 2, "riskType": "Config / secretos", "riskWhen": "yes" },
+    { "id": "q11", "text": "¿Maneja JWT, hashing, firmas o algoritmos criptográficos?", "weight": 2, "riskType": "Criptografía", "riskWhen": "yes" },
+    { "id": "q12", "text": "¿Introduce lógica de negocio nueva o modifica procesos existentes?", "weight": 2, "riskType": "Lógica personalizada", "riskWhen": "yes" },
+    { "id": "q13", "text": "¿Impacta múltiples capas o sistemas compartidos?", "weight": 1, "riskType": "Propagación", "riskWhen": "yes" },
+    { "id": "q14", "text": "¿Incluye logs de seguridad/monitoreo/alertas sobre la funcionalidad?", "weight": 1, "riskType": "Trazabilidad", "riskWhen": "no_or_unknown" }
+  ]
+}
