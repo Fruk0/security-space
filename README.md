@@ -2,6 +2,9 @@
 
 Una guía rápida de cómo está organizado el MVP, qué hace hoy y cómo crecer sin romper nada. Pensado para Next.js (App Router) + shadcn/ui.
 
+<img width="975" height="460" alt="image" src="https://github.com/user-attachments/assets/8ba27788-a004-46aa-8ac2-4b0fbf189f97" />
+
+
 ---
 
 ## 1) ¿Qué es esto?
