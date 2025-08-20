@@ -50,10 +50,6 @@ Un **orquestador** de intake de seguridad que permite:
 
 ---
 
-¡hecho! acá tienes el **punto 3** listo para **reemplazar 1:1** en tu README.
-
----
-
 ### 3) Cómo levantar el proyecto **desde GitHub** (privado o público)
 
 **Requisitos**
