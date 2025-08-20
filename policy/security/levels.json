@@ -1,0 +1,7 @@
+{
+  "levels": [
+    { "key": "Low", "min": 0, "max": 5, "color": "bg-emerald-500" },
+    { "key": "Medium", "min": 6, "max": 10, "color": "bg-amber-500" },
+    { "key": "High", "min": 11, "max": 99, "color": "bg-rose-600" }
+  ]
+}

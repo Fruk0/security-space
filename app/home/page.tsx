@@ -12,160 +12,19 @@ import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 
-/* =========================================================
- * Tipos
- * ======================================================= */
-type CriterionGroupKey = 'C1' | 'C2' | 'C3' | 'C4'
-type QA = 'yes' | 'no' | 'unknown'
-type DecisionStatus = 'pending' | 'pass' | 'fail'
-type DecisionLabel = 'PENDIENTE' | 'PASA' | 'REVISAR' | 'NO PASA'
+import { loadCriteria, loadFramework, loadLevels } from '@/lib/security/policy'
+import type { QA, CriterionDef, CriterionAnswers, DecisionStatus, DecisionLabel } from '@/lib/security/domain'
+import { evalCriterion, evalFramework } from '@/lib/security/engine'
+import { isValidJiraKey } from '@/lib/security/validators'
+import { writeClipboard } from '@/lib/security/clipboard'
+import { buildPayload, buildCommentForCriterion, buildCommentForFramework } from '@/lib/security/jira'
 
-type CriterionQuestion = { id: string; group: CriterionGroupKey; text: string }
-type Q = {
-  id: string
-  text: string
-  type: 'yes_no_unknown'
-  weight: number
-  riskType: string
-  riskWhen?: 'yes' | 'no' | 'unknown' | 'yes_or_unknown' | 'no_or_unknown'
-}
-
-/* =========================================================
- * Constantes (Criterios + Framework)
- * ======================================================= */
-const CRITERIA_GROUPS: Record<CriterionGroupKey, { title: string; description?: string }> = {
-  C1: {
-    title: 'Criterio 1 – PATCH en servicio previamente validado',
-    description:
-      'Cambios mínimos en el código (ej: logs, refactors, cambios de dependencias) sin impacto en lógica de negocio ni entidades de entrada/salida, sobre servicios ya revisados por Ciber en versiones anteriores.',
-  },
-  C2: {
-    title: 'Criterio 2 – Contenido público accedido vía Contentful',
-    description:
-      'Servicios que consultan exclusivamente contenido público (FAQs, legales, beneficios, banners), sin requerir autenticación ni permitir modificación de datos.',
-  },
-  C3: {
-    title: 'Criterio 3 – Procesos batch internos sin impacto crítico',
-    description:
-      'Procesos batch ejecutados en backend, que no exponen endpoints y no operan sobre dinero o datos sensibles de cuenta.',
-  },
-  C4: {
-    title: 'Criterio 4 – Servicios sin cambios en capa canal',
-    description:
-      'Servicios que ya fueron evaluados y no presentan cambios ni en versiones, ni en contratos de entrada/salida.',
-  },
-}
-
-const CRITERION_QUESTIONS: CriterionQuestion[] = [
-  // C1
-  { id: 'c1_q1', group: 'C1', text: '¿El cambio es únicamente de tipo PATCH (ej: versión 1.2.3 → 1.2.4)?' },
-  { id: 'c1_q2', group: 'C1', text: '¿El cambio mantiene sin modificaciones entidades, validaciones, lógica de negocio y endpoints?' },
-  { id: 'c1_q3', group: 'C1', text: '¿El servicio ya fue validado previamente por Ciberseguridad?' },
-  { id: 'c1_q4', group: 'C1', text: '¿El servicio está limitado a uso interno, sin exposición directa a usuarios externos?' },
-  { id: 'c1_q5', group: 'C1', text: '¿El cambio evita acceso o transformación de datos sensibles?' },
-
-  // C2
-  { id: 'c2_q1', group: 'C2', text: '¿El servicio utiliza exclusivamente el método GET?' },
-  { id: 'c2_q2', group: 'C2', text: '¿El contenido proviene únicamente de Contentful/CDN público?' },
-  { id: 'c2_q3', group: 'C2', text: '¿El servicio funciona sin autenticación ni tokens?' },
-  { id: 'c2_q4', group: 'C2', text: '¿El servicio expone únicamente datos públicos no sensibles?' },
-
-  // C3
-  { id: 'c3_q1', group: 'C3', text: '¿Se trata de un proceso batch o job interno (por ejemplo, cron o ejecutable)?' },
-  { id: 'c3_q2', group: 'C3', text: '¿Se ejecuta en capas internas (por ejemplo, BLR), sin exposición por canal?' },
-  { id: 'c3_q3', group: 'C3', text: '¿No accede ni transforma datos de cuentas, tokens o transacciones?' },
-  { id: 'c3_q4', group: 'C3', text: '¿No interactúa con APIs externas ni consume credenciales?' },
-
-  // C4
-  { id: 'c4_q1', group: 'C4', text: '¿El servicio mantiene sin cambios la versión, el contrato y la lógica?' },
-  { id: 'c4_q2', group: 'C4', text: '¿No se agregan nuevos parámetros, headers ni operaciones?' },
-  { id: 'c4_q3', group: 'C4', text: '¿El servicio ya fue validado previamente por Ciberseguridad?' },
-]
-
-const QUESTIONS: Q[] = [
-  { id: 'q1', text: '¿Este cambio crea o modifica un endpoint o ruta accesible?', type: 'yes_no_unknown', weight: 1, riskType: 'Superficie nueva', riskWhen: 'yes' },
-  { id: 'q2', text: '¿Es accesible desde Internet o por usuarios externos?', type: 'yes_no_unknown', weight: 2, riskType: 'Exposición externa', riskWhen: 'yes' },
-  { id: 'q3', text: '¿Requiere login, token, JWT o manejo de sesión?', type: 'yes_no_unknown', weight: 1, riskType: 'Lógica de sesión', riskWhen: 'yes' },
-  { id: 'q4', text: '¿Afecta control de roles, permisos o lógica de autorización?', type: 'yes_no_unknown', weight: 2, riskType: 'Autorización / acceso', riskWhen: 'yes' },
-  { id: 'q5', text: '¿Procesa o expone datos sensibles (PII, credenciales, financieros)?', type: 'yes_no_unknown', weight: 3, riskType: 'Confidencialidad', riskWhen: 'yes' },
-  { id: 'q6', text: '¿Permite operaciones críticas (altas, bajas, transferencias, privilegios)?', type: 'yes_no_unknown', weight: 3, riskType: 'Impacto funcional', riskWhen: 'yes' },
-  { id: 'q7', text: '¿Recibe entradas complejas (uploads, URLs, archivos, input libre)?', type: 'yes_no_unknown', weight: 2, riskType: 'Riesgo de entrada', riskWhen: 'yes' },
-  { id: 'q8', text: '¿Valida correctamente todas las entradas en backend?', type: 'yes_no_unknown', weight: 2, riskType: 'Ausencia de validación', riskWhen: 'no_or_unknown' },
-  { id: 'q9', text: '¿Consume APIs externas, SDKs o servicios nuevos?', type: 'yes_no_unknown', weight: 1, riskType: 'Integración externa', riskWhen: 'yes' },
-  { id: 'q10', text: '¿Requiere configuración, secretos o acceso a infraestructura?', type: 'yes_no_unknown', weight: 2, riskType: 'Config / secretos', riskWhen: 'yes' },
-  { id: 'q11', text: '¿Maneja JWT, hashing, firmas o algoritmos criptográficos?', type: 'yes_no_unknown', weight: 2, riskType: 'Criptografía', riskWhen: 'yes' },
-  { id: 'q12', text: '¿Introduce lógica de negocio nueva o modifica procesos existentes?', type: 'yes_no_unknown', weight: 2, riskType: 'Lógica personalizada', riskWhen: 'yes' },
-  { id: 'q13', text: '¿Impacta múltiples capas o sistemas compartidos?', type: 'yes_no_unknown', weight: 1, riskType: 'Propagación', riskWhen: 'yes' },
-  { id: 'q14', text: '¿Incluye logs de seguridad/monitoreo/alertas sobre la funcionalidad?', type: 'yes_no_unknown', weight: 1, riskType: 'Trazabilidad', riskWhen: 'no_or_unknown' },
-]
-
-const LEVELS = [
-  { key: 'Low', min: 0, max: 5, color: 'bg-emerald-500' },
-  { key: 'Medium', min: 6, max: 10, color: 'bg-amber-500' },
-  { key: 'High', min: 11, max: 99, color: 'bg-rose-600' },
-] as const
-
-/* =========================================================
- * Helpers puros
- * ======================================================= */
-
-// Helper robusto de portapapeles (con fallback + isSecureContext)
-async function writeClipboard(text: string): Promise<boolean> {
-  // Si no es contexto seguro, vamos directo al fallback
-  if (!(window as any).isSecureContext || !navigator.clipboard?.writeText) {
-    try {
-      const ta = document.createElement('textarea')
-      ta.value = text
-      ta.style.position = 'fixed'
-      ta.style.opacity = '0'
-      document.body.appendChild(ta)
-      ta.select()
-      const ok = document.execCommand('copy')
-      document.body.removeChild(ta)
-      if (!ok) window.prompt('Copiar al portapapeles:', text)
-      return ok
-    } catch {
-      window.prompt('Copiar al portapapeles:', text)
-      return false
-    }
-  }
-
-  // Contexto seguro: usamos Clipboard API
-  try {
-    await navigator.clipboard.writeText(text)
-    return true
-  } catch {
-    try {
-      const ta = document.createElement('textarea')
-      ta.value = text
-      ta.style.position = 'fixed'
-      ta.style.opacity = '0'
-      document.body.appendChild(ta)
-      ta.select()
-      const ok = document.execCommand('copy')
-      document.body.removeChild(ta)
-      if (!ok) window.prompt('Copiar al portapapeles:', text)
-      return ok
-    } catch {
-      window.prompt('Copiar al portapapeles:', text)
-      return false
-    }
-  }
-}
-
-type JustMap = Record<string, string>
-
-const groupQuestions = (g: CriterionGroupKey) => CRITERION_QUESTIONS.filter(q => q.group === g)
-
-const shouldCount = (riskWhen: Q['riskWhen'], a: QA | undefined) => {
-  if (!a || !riskWhen) return false
-  if (riskWhen === 'yes') return a === 'yes'
-  if (riskWhen === 'no') return a === 'no'
-  if (riskWhen === 'unknown') return a === 'unknown'
-  if (riskWhen === 'no_or_unknown') return a === 'no' || a === 'unknown'
-  if (riskWhen === 'yes_or_unknown') return a === 'yes' || a === 'unknown'
-  return false
-}
+/* =======================
+ * Carga de políticas
+ * ===================== */
+const CRITERIA: CriterionDef[] = loadCriteria()
+const FRAMEWORK = loadFramework()
+const LEVELS = loadLevels()
 
 const badgeColor = (label: DecisionLabel) =>
   cn(
@@ -176,24 +35,6 @@ const badgeColor = (label: DecisionLabel) =>
     label === 'NO PASA' && 'bg-rose-600'
   )
 
-const evalSingleCriterion = (
-  answers: Record<string, QA>,
-  group: CriterionGroupKey
-): { status: DecisionStatus; label: DecisionLabel } => {
-  const qs = groupQuestions(group)
-  const answered = qs.filter(q => answers[q.id] !== undefined).length
-  if (answered === 0) return { status: 'pending', label: 'PENDIENTE' }
-  const allYes = qs.length > 0 && qs.every(q => answers[q.id] === 'yes')
-  if (allYes) return { status: 'pass', label: 'PASA' }
-  const hasUnknown = qs.some(q => answers[q.id] === 'unknown')
-  const incomplete = answered < qs.length
-  if (hasUnknown || incomplete) return { status: 'fail', label: 'REVISAR' }
-  return { status: 'fail', label: 'NO PASA' }
-}
-
-/* =========================================================
- * Componente
- * ======================================================= */
 export default function SecuritySpaceRiskCalculator() {
   // Estado base
   const [jiraKey, setJiraKey] = useState('')
@@ -204,39 +45,49 @@ export default function SecuritySpaceRiskCalculator() {
 
   // Estado criterios
   const [critAnswers, setCritAnswers] = useState<Record<string, QA>>({})
-  const [selectedCriterion, setSelectedCriterion] = useState<CriterionGroupKey | null>(null)
-  const [critJustifications, setCritJustifications] = useState<JustMap>({})
-  const [acceptedCriterion, setAcceptedCriterion] = useState<CriterionGroupKey | null>(null)
+  const [selectedCriterionId, setSelectedCriterionId] = useState<string | null>(null)
+  const [critJustifications, setCritJustifications] = useState<Record<string, string>>({})
+  const [acceptedCriterionId, setAcceptedCriterionId] = useState<string | null>(null)
 
   // Feedback copiar
   const [copiedJSON, setCopiedJSON] = useState<null | 'ok' | 'err'>(null)
   const [copiedComment, setCopiedComment] = useState<null | 'ok' | 'err'>(null)
 
   // Validación KEY Jira
-  const JIRA_KEY_RE = /^[A-Z]{1,4}-\d+$/
-  const isJiraKeyValid = JIRA_KEY_RE.test(jiraKey.trim())
+  const isJiraKeyValid = isValidJiraKey(jiraKey)
 
-  // Derivados
-  const selectedStatus = useMemo(
-    () => (selectedCriterion ? evalSingleCriterion(critAnswers, selectedCriterion) : { status: 'pending', label: 'PENDIENTE' as const }),
-    [critAnswers, selectedCriterion]
-  )
+  // Helpers
+  const getCriterion = (id: string | null): CriterionDef | null =>
+    id ? (CRITERIA.find(c => c.id === id) ?? null) : null
+
+  const selectedCriterion = getCriterion(selectedCriterionId)
+  const acceptedCriterion = getCriterion(acceptedCriterionId)
+
+  // Estado derivado: criterio seleccionado
+  const selectedEval = useMemo(() => {
+    if (!selectedCriterion) return { status: 'pending' as DecisionStatus, label: 'PENDIENTE' as DecisionLabel, allYes: false }
+    return evalCriterion(selectedCriterion, critAnswers as CriterionAnswers)
+  }, [selectedCriterion, critAnswers])
 
   const selectedReadyToAccept = useMemo(() => {
-    if (!selectedCriterion || selectedStatus.status !== 'pass') return false
-    const qs = groupQuestions(selectedCriterion)
-    return qs.every(q => (critAnswers[q.id] === 'yes') && !!critJustifications[q.id]?.trim())
-  }, [selectedCriterion, selectedStatus.status, critAnswers, critJustifications])
+    if (!selectedCriterion || selectedEval.status !== 'pass') return false
+    // justificación requerida cuando la respuesta es 'yes'
+    return selectedCriterion.questions.every(q => {
+      if (critAnswers[q.id] !== 'yes') return true
+      if (!q.requiresJustificationWhen?.includes('yes')) return true
+      return !!critJustifications[q.id]?.trim()
+    })
+  }, [selectedCriterion, selectedEval.status, critAnswers, critJustifications])
 
+  // Framework derivado
   const answeredCount = useMemo(() => Object.keys(answers).length, [answers])
-  const score = useMemo(() => QUESTIONS.reduce((acc, q) => acc + (shouldCount(q.riskWhen, answers[q.id]) ? q.weight : 0), 0), [answers])
-  const level = useMemo(() => LEVELS.find(l => score >= l.min && score <= l.max)?.key ?? 'Low', [score])
-  const levelColor = useMemo(() => LEVELS.find(l => score >= l.min && score <= l.max)?.color ?? 'bg-emerald-500', [score])
-  const progressPct = useMemo(() => Math.round((answeredCount / QUESTIONS.length) * 100), [answeredCount])
+  const frameworkEval = evalFramework(FRAMEWORK, LEVELS, answers)
+  const { score, level, allAnswered } = frameworkEval
+  const levelColor = useMemo(() => LEVELS.find(l => l.key === level)?.color ?? 'bg-emerald-500', [level])
+  const progressPct = useMemo(() => Math.round((answeredCount / FRAMEWORK.questions.length) * 100), [answeredCount])
 
-  const allFrameworkAnswered = useMemo(() => Object.keys(answers).length === QUESTIONS.length, [answers])
-  const frameworkReady = ticketConfirmed && (criterionPass === 'fail') && allFrameworkAnswered
   const showFramework = ticketConfirmed && criterionPass === 'fail'
+  const frameworkReady = ticketConfirmed && (criterionPass === 'fail') && allAnswered
 
   // Habilita acciones de copia si pasaste por criterio o completaste el framework
   const decisionReady = useMemo(() => {
@@ -253,79 +104,48 @@ export default function SecuritySpaceRiskCalculator() {
   function resetAll() {
     setAnswers({}); setNotes(''); setCriterionPass('pending')
     setCritAnswers({}); setCritJustifications({})
-    setSelectedCriterion(null); setAcceptedCriterion(null)
+    setSelectedCriterionId(null); setAcceptedCriterionId(null)
     setTicketConfirmed(false)
   }
 
-  // Copiar payload JSON
   async function copyPayload() {
-    const rationale = QUESTIONS
-      .filter(q => shouldCount(q.riskWhen, answers[q.id]))
-      .map(q => ({ id: q.id, text: q.text, weight: q.weight, answer: answers[q.id] }))
+    const mode: 'criterion' | 'framework' | 'pending' =
+      criterionPass === 'pass' ? 'criterion' :
+      criterionPass === 'fail' ? 'framework' : 'pending'
 
-    const payload = {
-      ticket: jiraKey.trim(),
-      decision: {
-        mode: criterionPass === 'pass' ? 'criterion' : (criterionPass === 'fail' ? 'framework' : 'pending'),
-        byCriterion: criterionPass === 'pass' ? {
-          used: acceptedCriterion,
-          title: acceptedCriterion ? CRITERIA_GROUPS[acceptedCriterion].title : null,
-          answers: critAnswers,
-          justifications: critJustifications,
-        } : null,
-        byFramework: criterionPass === 'fail' ? {
-          score, level, answers, allAnswered: allFrameworkAnswered,
-        } : null
-      },
-      notes,
-      rationale,
-      generatedAt: new Date().toISOString(),
-    }
+    const payload = buildPayload({
+      ticket: jiraKey,
+      mode,
+      criterion: mode === 'criterion' && acceptedCriterion ? {
+        def: acceptedCriterion,
+        answers: critAnswers,
+        justifications: critJustifications
+      } : undefined,
+      framework: mode === 'framework' ? {
+        def: FRAMEWORK,
+        answers,
+        score,
+        level,
+        allAnswered
+      } : undefined,
+      notes
+    })
 
     const ok = await writeClipboard(JSON.stringify(payload, null, 2))
     setCopiedJSON(ok ? 'ok' : 'err')
     setTimeout(() => setCopiedJSON(null), 1500)
   }
 
-  // Construir comentario para Jira
-  function buildJiraComment(): string {
-    if (criterionPass === 'pass' && acceptedCriterion) {
-      const title = CRITERIA_GROUPS[acceptedCriterion].title
-      const qs = groupQuestions(acceptedCriterion)
-      const lines = qs
-        .filter(q => critAnswers[q.id] === 'yes')
-        .map(q => `- ${q.text}\n ${critJustifications[q.id] || '—'}`)
-        .join('\n')
-      return [
-        `Solicito aplicar el **criterio de ciberseguridad**: ${title}.`,
-        `Respuestas y justificaciones:`,
-        lines || '—',
-        notes ? `Notas: ${notes}` : ''
-      ].filter(Boolean).join('\n\n')
-    }
-
-    const lines = QUESTIONS
-      .filter(q => shouldCount(q.riskWhen, answers[q.id]))
-      .map(q => `- ${q.text} ( +${q.weight} )\n  Respuesta: ${answers[q.id]}`)
-      .join('\n')
-
-    const completeness = allFrameworkAnswered
-      ? 'Todas las preguntas del framework fueron respondidas.'
-      : 'Aún hay preguntas sin responder.'
-
-    return [
-      `Solicito registrar el **Security Risk** calculado.`,
-      `Nivel: **${level}** (${score} pts).`,
-      completeness,
-      `Respuestas que aportan riesgo:`,
-      lines || '—',
-      notes ? `Notas: ${notes}` : ''
-    ].filter(Boolean).join('\n\n')
-  }
-
-  // Copiar comentario Jira
   async function copyJiraComment() {
-    const ok = await writeClipboard(buildJiraComment())
+    let text = ''
+    if (criterionPass === 'pass' && acceptedCriterion) {
+      text = buildCommentForCriterion(acceptedCriterion, critAnswers, critJustifications, notes)
+    } else if (criterionPass === 'fail') {
+      text = buildCommentForFramework(FRAMEWORK, answers, score, level, allAnswered, notes)
+    } else {
+      text = 'Aún no hay una decisión registrada.'
+    }
+    const ok = await writeClipboard(text)
     setCopiedComment(ok ? 'ok' : 'err')
     setTimeout(() => setCopiedComment(null), 1500)
   }
@@ -396,21 +216,21 @@ export default function SecuritySpaceRiskCalculator() {
                     </div>
                     <Button
                       variant="default"
-                      onClick={() => { setCriterionPass('fail'); setSelectedCriterion(null); setAcceptedCriterion(null) }}
+                      onClick={() => { setCriterionPass('fail'); setSelectedCriterionId(null); setAcceptedCriterionId(null) }}
                     >
                       No aplica / Ir al framework
                     </Button>
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-2">
-                    {(['C1','C2','C3','C4'] as CriterionGroupKey[]).map((g) => (
-                      <Card key={g} className="border">
+                    {CRITERIA.map((c) => (
+                      <Card key={c.id} className="border">
                         <CardHeader className="py-4">
-                          <CardTitle className="text-base">{CRITERIA_GROUPS[g].title}</CardTitle>
-                          {CRITERIA_GROUPS[g].description && <CardDescription>{CRITERIA_GROUPS[g].description}</CardDescription>}
+                          <CardTitle className="text-base">{c.title}</CardTitle>
+                          {c.description && <CardDescription>{c.description}</CardDescription>}
                         </CardHeader>
                         <CardContent className="flex items-center justify-between pt-0">
-                          <Button variant="secondary" onClick={() => setSelectedCriterion(g)}>Usar este criterio</Button>
+                          <Button variant="secondary" onClick={() => setSelectedCriterionId(c.id)}>Usar este criterio</Button>
                         </CardContent>
                       </Card>
                     ))}
@@ -418,24 +238,23 @@ export default function SecuritySpaceRiskCalculator() {
                 </>
               ) : (
                 <>
-                    <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 space-y-1">
-                        <h3 className="text-lg font-semibold">{CRITERIA_GROUPS[selectedCriterion].title}</h3>
-                        {CRITERIA_GROUPS[selectedCriterion].description && (
+                      <h3 className="text-lg font-semibold">{selectedCriterion.title}</h3>
+                      {selectedCriterion.description && (
                         <p className="text-sm text-muted-foreground break-words">
-                            {CRITERIA_GROUPS[selectedCriterion].description}
+                          {selectedCriterion.description}
                         </p>
-                        )}
+                      )}
                     </div>
-                    <Badge className={cn('shrink-0', badgeColor(selectedStatus.label))}>
-                        {selectedStatus.label}
+                    <Badge className={cn('shrink-0', badgeColor(selectedEval.label))}>
+                      {selectedEval.label}
                     </Badge>
-                    </div>
-
+                  </div>
 
                   {/* Preguntas del criterio seleccionado */}
                   <div className="space-y-3">
-                    {groupQuestions(selectedCriterion).map((q) => (
+                    {selectedCriterion.questions.map((q) => (
                       <div key={q.id} className="flex flex-col gap-2 border rounded-lg p-3">
                         <span className="font-medium">{q.text}</span>
                         <RadioGroup className="flex gap-6" value={critAnswers[q.id] ?? ''} onValueChange={(v: string) => setCritAnswer(q.id, v as QA)}>
@@ -454,7 +273,7 @@ export default function SecuritySpaceRiskCalculator() {
                         </RadioGroup>
 
                         {/* Justificación obligatoria si Aplica */}
-                        {critAnswers[q.id] === 'yes' && (
+                        {critAnswers[q.id] === 'yes' && q.requiresJustificationWhen?.includes('yes') && (
                           <div className="mt-2">
                             <Label htmlFor={`${q.id}-crit-just`} className="text-xs">Justificación</Label>
                             <Textarea
@@ -471,9 +290,9 @@ export default function SecuritySpaceRiskCalculator() {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-3">
-                    <Button onClick={() => setSelectedCriterion(null)} variant="secondary">Volver a criterios</Button>
+                    <Button onClick={() => setSelectedCriterionId(null)} variant="secondary">Volver a criterios</Button>
                     <Button
-                      onClick={() => { setCriterionPass('fail'); setSelectedCriterion(null); setAcceptedCriterion(null) }}
+                      onClick={() => { setCriterionPass('fail'); setSelectedCriterionId(null); setAcceptedCriterionId(null) }}
                       variant="destructive"
                     >
                       Descartar e ir al framework
@@ -481,10 +300,9 @@ export default function SecuritySpaceRiskCalculator() {
                     <Button
                       onClick={() => {
                         if (!selectedCriterion) return
-                        const used = selectedCriterion
-                        setAcceptedCriterion(used)        // 1) guardo el criterio aceptado
-                        setCriterionPass('pass')          // 2) marco que pasó por criterio
-                        setSelectedCriterion(null)        // 3) limpio la vista de preguntas
+                        setAcceptedCriterionId(selectedCriterion.id)
+                        setCriterionPass('pass')
+                        setSelectedCriterionId(null)
                       }}
                       disabled={!selectedReadyToAccept}
                     >
@@ -523,7 +341,7 @@ export default function SecuritySpaceRiskCalculator() {
               <Progress value={progressPct} />
 
               <div className="space-y-4">
-                {QUESTIONS.map((q) => (
+                {FRAMEWORK.questions.map((q) => (
                   <Card key={q.id} className="border">
                     <CardContent className="pt-6">
                       <div className="flex flex-col gap-3">
@@ -566,7 +384,7 @@ export default function SecuritySpaceRiskCalculator() {
                     <span className="text-xs text-muted-foreground">{frameworkReady ? 'Riesgo FINAL' : 'Riesgo temporal'}</span>
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground text-right">
-                    {answeredCount}/{QUESTIONS.length} respondidas
+                    {answeredCount}/{FRAMEWORK.questions.length} respondidas
                   </div>
                   <Progress value={progressPct} className="mt-2" />
                 </CardContent>
