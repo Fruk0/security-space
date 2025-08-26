@@ -37,11 +37,11 @@ const badgeColor = (label: DecisionLabel) =>
     label === 'PENDIENTE' && 'bg-gray-400',
     label === 'PASA' && 'bg-emerald-600',
     label === 'REVISAR' && 'bg-amber-600',
-    (label === 'NO APLICA' || label === 'NO PASA') && 'bg-rose-600'
+    label === 'NO_APLICA' && 'bg-rose-600'
   )
 
 const displayLabel = (label: DecisionLabel): string =>
-  label === 'NO PASA' ? 'NO APLICA' : label
+  label === 'NO_APLICA' ? 'NO APLICA' : label
 
 export default function SecuritySpaceRiskCalculator() {
   // Estado base
@@ -298,7 +298,9 @@ export default function SecuritySpaceRiskCalculator() {
           {!ticketConfirmed ? (
             <div className="grid gap-4 md:grid-cols-3 items-end">
               <div className="md:col-span-2">
-                <Label htmlFor="jira">Ticket de Jira (KEY)</Label>
+                <Label htmlFor="ticketKey" className="mb-2 block">
+                Ticket de Jira (KEY)
+              </Label>
                 <Input
                   id="jira"
                   placeholder="CS-123"
