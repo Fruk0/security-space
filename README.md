@@ -1,351 +1,157 @@
 # Security Space – README
 
-Una guía rápida de cómo está organizado el MVP, qué hace hoy y cómo crecer sin romper nada. Pensado para Next.js (App Router) + shadcn/ui.
+Entorno interactivo para **evaluar, priorizar y gestionar riesgos de seguridad** en implementaciones de software.
+Simple, rápido y trazable para equipos de Seguridad y Desarrollo.
 
 <img width="975" height="460" alt="image" src="https://github.com/user-attachments/assets/8ba27788-a004-46aa-8ac2-4b0fbf189f97" />
 
 
----
 
-## 1) ¿Qué es esto?
+## 🚀 Despliegue
 
-Un **orquestador** de intake de seguridad que permite:
+### Requisitos
 
-* Validar un **ticket de Jira** (KEY con regex).
-* Intentar pasar por **criterios rápidos** (C1..C4).
+* **Node.js** ≥ 18
+* **pnpm** (recomendado) o **npm**
 
-  * Si un criterio aplica y todas sus respuestas son “Aplica” con **justificación** → **PASA**.
-* Si no pasa por criterios → **Framework de riesgo** con 14 preguntas, **score** y **nivel** (Low/Medium/High).
-* **Copiar** un **payload JSON** y un **comentario listo** para pegar en Jira.
-* Sticky de score / progreso cuando se usa el framework.
-
-> Estado actual: **MVP local**, sin backend, sin auth, sin Jira API. Todo client-side.
-
----
-
-## 2) Estructura de carpetas
-
-```txt
-.
-├─ app/
-│  └─ home/
-│     └─ page.tsx                # Pantalla principal (UI y orquestación del flujo)
-│
-├─ lib/
-│  └─ security/
-│     ├─ scoring.ts              # Helpers de evaluación/score/nivel y builders de payload/comentario
-│     ├─ clipboard.ts            # writeClipboard() con fallback seguro
-│     └─ jira.ts                 # Regex de Jira y helpers de validación
-│
-├─ policy/
-│  └─ security/
-│     ├─ criteria-groups.json    # Metadatos de criterios (C1..C4: título + descripción)
-│     ├─ criterion-questions.json# Preguntas por criterio (id, group, text)
-│     └─ framework-questions.json# Preguntas del marco de riesgo (id, texto, peso, riskWhen, etc.)
-│
-└─ components/ui/…               # shadcn/ui (Button, Card, Badge, etc.)
-```
-
-> Si usás `src/`, mové `lib/` y `policy/` dentro de `src/` y asegurate de que el alias `@` apunte correctamente.
-
----
-
-### 3) Cómo levantar el proyecto **desde GitHub** (privado o público)
-
-**Requisitos**
-
-* Node.js **18+**
-* npm (v9+)
-* Acceso al repo (si es **privado**: usa **SSH** con tu clave agregada a GitHub o **HTTPS** con un **PAT**)
-
-**A. Clonar el repositorio**
-
-> **SSH (recomendado)**
+### Instalación
 
 ```bash
-git clone git@github.com:<tu-org-o-user>/<tu-repo>.git security-space
-```
-
-> **HTTPS (alternativa)**
-
-```bash
-git clone https://github.com/<tu-org-o-user>/<tu-repo>.git security-space
-```
-
-**B. Instalar dependencias**
-
-```bash
+# Clonar y entrar
+git clone https://github.com/tu-org/security-space.git
 cd security-space
-npm i
+
+# Instalar dependencias
+pnpm install
+# o
+npm install
 ```
 
-**C. Verificar configuración de TypeScript (alias `@`)**
-Asegurate que `tsconfig.json` contenga:
-
-```json
-{
-  "compilerOptions": {
-    "paths": { "@/*": ["./*"] },
-    "resolveJsonModule": true,
-    "esModuleInterop": true
-  }
-}
-```
-
-> Si usás `src/`, revisá que el alias `@` apunte a `./src/*` y que las carpetas (`lib/`, `policy/`) estén dentro de `src/`.
-
-**D. Ejecutar en local (dev)**
+### Desarrollo
 
 ```bash
+pnpm dev
+# o
 npm run dev
 ```
 
-Abrí: `http://localhost:3000/home`
+App en: [http://localhost:3000](http://localhost:3000)
 
-**E. Build & producción (opcional)**
+### Producción
 
 ```bash
-npm run build
-npm run start
+pnpm build
+pnpm start
 ```
 
-**F. (Privado) Agregar colaboradores**
+---
 
-* En GitHub → *Settings* → *Collaborators & Teams* → **Add people** (o **Teams**).
-* Si usan SSH: cada dev debe agregar su **SSH key** en GitHub (*Settings* → *SSH and GPG keys*).
+## 📂 Estructura
 
-**G. (Opcional) Despliegue rápido en Vercel**
+```
+app/               Rutas y vistas (Next.js)
+ ├─ home/          Landing/flujo inicial
+ ├─ dashboard/     Métricas y estados
+ └─ security-panel/Panel de ejecución/decisión
+components/        UI (shadcn/ui) + componentes de seguridad
+lib/               Dominio, engine de reglas, validadores, integración Jira/SOC
+policy/security/   Definiciones en JSON (criteria, framework, levels)
+```
 
-1. Crea un proyecto en Vercel y conéctalo al repo de GitHub.
-2. Framework: **Next.js** (auto-detectado).
-3. Variables de entorno: este MVP **no necesita**.
-4. Deploy.
+Archivos clave:
 
-**Notas**
-
-* shadcn/ui ya está incluido en el repo (no hay pasos extra).
-* El flujo usa **portapapeles** con *fallback*; en navegadores con restricciones el prompt de copia manual aparecerá automáticamente.
-* Si cambiás la ruta principal, hoy está en `/home` (Next.js App Router). Si querés `/security-space`, renombrá la carpeta a `app/security-space/page.tsx` o crea una ruta adicional.
+* `policy/security/criteria.json` – Criterios de aceptación temprana
+* `policy/security/framework.json` – Preguntas de framework de riesgo
+* `policy/security/levels.json` – Niveles/umbrales de riesgo
+* `lib/security/engine.ts` – Lógica de evaluación
+* `lib/security/scoring.ts` – Cálculo/normalización de score
 
 ---
 
-## 4) Flujo funcional (resumen)
+## 🔄 Workflow de uso (alto nivel)
 
-1. **Ingresás KEY de Jira** → validación con `/^[A-Z]{1,4}-\d+$/`.
-2. **Confirmás ticket**.
-3. Elegís:
+```mermaid
+flowchart TD
+    A[Ingresar Ticket] --> B{Validación mínima}
+    B -- incompleto --> B1[Solicitar datos faltantes]
+    B -- completo --> C[Evaluación por Criterios]
 
-   * **Criterios (opcional)**
+    C -->|Todos aplican| D[Aceptado por Criterio]
+    C -->|Alguno no aplica| E[Framework de Riesgo]
 
-     * Seleccionás C1..C4 → respondés **Aplica/No aplica/Duda**.
-     * Si marcás **Aplica** en alguna pregunta → **justificación obligatoria**.
-     * Si **todas** las preguntas del criterio son “Aplica” **con** justificación → botón **Aceptar por criterio** → **PASA**.
-   * **Framework de riesgo**
+    E --> F[Responder preguntas]
+    F --> G[Calcular Score]
+    G --> I[Pentest / Revisión / Controles]
+    D --> J[Registrar decisión]
+    I --> J
+    J --> K[Exportar/Sync]
 
-     * Si “No aplica / Ir al framework” o si el criterio **no pasa**.
-     * Debés responder **todas** las preguntas (Sí/No/No sé).
-     * Se calcula **score** y **nivel** (Low/Medium/High).
-     * Sticky flotante con score y **progreso**.
-4. **Acciones (cuando hay decisión válida)**
-
-   * **Copiar payload JSON** (para futuras integraciones).
-   * **Copiar comentario Jira** (mensaje listo).
-
----
-
-## 5) ¿Qué hace cada módulo?
-
-### `policy/security/*.json`
-
-* **criteria-groups.json**:
-  Define cada criterio (C1..C4) con `key`, `title`, `description`.
-
-  > Para agregar un C5, solo añadilo acá y en `criterion-questions.json`.
-* **criterion-questions.json**:
-  Lista todas las preguntas por criterio: `{ "id", "group", "text" }`.
-
-  > El **motor** asume que un criterio **PASA** si **todas** sus preguntas están en “Aplica” y cada una tiene justificación.
-* **framework-questions.json**:
-  Lista del framework: `{ id, text, weight, riskType, riskWhen }`.
-
-  * `riskWhen`: `"yes" | "no" | "unknown" | "yes_or_unknown" | "no_or_unknown"`.
-
-### `lib/security/scoring.ts`
-
-* Helpers **puros** (sin React) para:
-
-  * `shouldCount(riskWhen, answer)`
-  * `computeScore(answers, questions)`, `computeLevel(score, levels)`
-  * `evalSingleCriterion(answers, groupQuestions)`
-  * `buildPayload(...)`, `buildJiraComment(...)`
-* **Ventaja**: Podés testearlos con unit tests sin montar la UI.
-
-### `lib/security/clipboard.ts`
-
-* `writeClipboard(text)` con fallback:
-
-  * Usa `navigator.clipboard` si el contexto es seguro.
-  * Si falla, usa `document.execCommand('copy')`.
-  * Si falla, muestra `window.prompt` para copiar manualmente.
-
-### `lib/security/jira.ts`
-
-* `JIRA_KEY_RE` y `isJiraKeyValid(key: string)`.
-
-### `app/home/page.tsx`
-
-* Orquesta todo:
-
-  * Estados locales (key, criterios, framework, sticky, copias).
-  * Renderiza tarjetas y botones.
-  * Habilita acciones solo cuando la decisión está lista:
-
-    * **Por criterio**: criterio aceptado.
-    * **Por framework**: todas las preguntas respondidas.
+    style D fill:#b4f8c8,stroke:#1f9d55,color:#0b3
+    style I fill:#ffd6a5,stroke:#d97706,color:#7c3
+```
 
 ---
 
-## 6) Cómo **agregar** un nuevo criterio (ej. C5 – Compliance)
+## ▶️ Uso rápido (UI)
 
-1. Editá `policy/security/criteria-groups.json` e **insertá**:
+1. **Ingresar ticket**: cargá el ticket (o manualmente) y validá que la información mínima esté completa.
+2. **Evaluación por criterios**:
 
-   ```json
-   {
-     "key": "C5",
-     "title": "Criterio 5 – Cumplimiento/Compliance",
-     "description": "Condiciones de cumplimiento regulatorio sin afectación de datos sensibles ni cambios en lógica."
-   }
-   ```
-2. En `policy/security/criterion-questions.json` **agregá** las preguntas del grupo `"group": "C5"`.
-3. **Listo** 🎉. La UI cargará automáticamente el nuevo criterio como tarjeta.
+   * Si **todos aplican**, la decisión es **Aceptado por Criterio** y el flujo termina.
+   * Si **alguno no aplica**, pasa al **Framework de Riesgo**.
+3. **Framework de Riesgo**: respondé las preguntas → se genera un score de referencia.
+4. **Acciones posteriores**: siempre se deriva a **Revisión/Pentest/Controles adicionales**, sin importar el score.
+5. **Registrar y exportar**: el resultado se guarda y puede copiarse/exportarse a Jira u otras plataformas.
 
-   * El motor ya sabe: **PASA** si todas las preguntas del grupo están en “Aplica” + justificación.
-
-> Si querés custom rules por criterio (ej. “al menos 3/4”), podrías extender `scoring.ts` (p. ej. `evalCriterionBy(group, mode: 'all' | 'atLeastN', n?: number)`), y guardar ese `mode`/`n` en `criteria-groups.json`.
+   * Tip: usá el botón de **copiar resumen** para facilitar la carga en otros sistemas.
 
 ---
 
-## 7) Cómo **agregar** preguntas al framework
+## 🛠️ Scripts útiles
 
-* Solo editá `policy/security/framework-questions.json`.
-* Respetá los campos y el `riskWhen`.
-* El sticky/progreso y el gating de “todas respondidas” funcionan automáticamente.
-
----
-
-## 8) Validación de Jira (regex)
-
-* **Regex**: `^[A-Z]{1,4}-\d+$` (máx 4 letras, guión y número).
-* Si necesitás series de letras más largas (ej. 5–10), cambiá en `jira.ts`.
+```bash
+pnpm lint         # ESLint
+pnpm build        # Build producción
+pnpm start        # Servir build
+pnpm dev          # Desarrollo
+```
 
 ---
 
-## 9) Copiar al portapapeles
+## ⚙️ Configuración y extensión
 
-* Usamos `writeClipboard()` con **fallbacks**.
-* Estados `copiedJSON`/`copiedComment` cambian temporalmente el texto del botón (“Copiado / Error ❌”).
+* **Criterios / Framework / Niveles**: editá los JSON en `policy/security/`.
+* **Reglas y scoring**: se ajusta en `lib/security/engine.ts` y `lib/security/scoring.ts`.
+* **Integraciones**: hooks y helpers en `lib/security/jira.ts` y `lib/jira_soc.ts`.
 
----
-
-## 10) Accesibilidad & UX
-
-* Sticky flotante discreto con score, nivel y progreso (solo en framework).
-* Mensajes de estado claros (“Pendiente”, “Aceptado”, “Riesgo temporal/final”).
-* Inputs con error states (regex Jira) y **justificación obligatoria** solo cuando **Aplica**.
-
----
-
-## 11) Roadmap técnico (resumido)
-
-* **Fase 1 – MVP** (actual):
-
-  * Flujo local, sin persistencia ni auth.
-  * Copiado JSON/Comentario.
-* **Fase 2 – API & Jira**:
-
-  * Backend **FastAPI**:
-
-    * `/api/jira/validate`, `/api/jira/update` (labels, risk score/level, comment).
-  * **SSO OIDC** (NextAuth con OIDC).
-  * Persistencia mínima (ticket\_key, respuestas, score\_final, nivel, autor, timestamp).
-  * Auditoría (bitácora de acciones).
-* **Fase 3 – Dashboards**:
-
-  * Métricas por squad/tribu (No aplica %, promedio Risk Score, High vs Low, TTR).
-  * Export/CSV y vistas comparativas.
-* **Fase 4 – Hub**:
-
-  * Integraciones DevSecOps (SAST/DAST/SCA) y “single pane of glass”.
-  * Extensibilidad de **criterios** (Negocio/Compliance) y cálculo de **WSJF de seguridad** (cuando lo definas).
-  * Perfiles y permisos (RBAC), features gamification.
-
----
-
-## 12) Buenas prácticas / Siguientes pasos
-
-* **Seguridad**:
-
-  * No exponer tokens de Jira en el cliente. Lógico del lado servidor (Next API routes o FastAPI).
-  * Secretos en **Vault** / **.env** server-only.
-  * Logging de auditoría (quién, qué, cuándo) → crucial para “responsabilidad”.
-* **Tests**:
-
-  * Unit tests en `lib/security/scoring.ts` (puro, fácil de testear).
-  * E2E (Playwright) para el flujo completo.
-* **Observabilidad**:
-
-  * Medir adopción (cuántos tickets pasan por criterio, % que van a framework, tiempos).
-* **Escalabilidad de políticas**:
-
-  * Mantener **TODO el contenido** fuera del componente (en `policy/`).
-  * Documentar criterios (propósito, cuándo usarlo, ejemplos).
-
----
-
-## 13) Ejemplos útiles
-
-### Payload JSON (por criterio)
+Ejemplo mínimo (`policy/security/criteria.json`):
 
 ```json
-{
-  "ticket": "CS-123",
-  "decision": {
-    "mode": "criterion",
-    "byCriterion": {
-      "used": "C1",
-      "title": "Criterio 1 – PATCH en servicio previamente validado",
-      "answers": { "c1_q1": "yes", "c1_q2": "yes", "...": "yes" },
-      "justifications": { "c1_q1": "patch 1.2.3→1.2.4", "c1_q2": "sin cambios en contratos", "...": "..." }
-    },
-    "byFramework": null
-  },
-  "notes": "Observaciones…",
-  "rationale": [],
-  "generatedAt": "2025-08-20T15:30:00.000Z"
-}
-```
-
-### Comentario para Jira (por framework)
-
-```
-Solicito registrar el **Security Risk** calculado.
-Nivel: **Medium** (8 pts).
-Todas las preguntas del framework fueron respondidas.
-
-Respuestas que aportan riesgo:
-- ¿Procesa o expone datos sensibles…? (+3)
-  Respuesta: yes
-- ¿Afecta control de roles…? (+2)
-  Respuesta: yes
-…
-Notas: …
+[
+  {
+    "id": "C1",
+    "title": "Controles críticos sin impacto",
+    "statements": [
+      "El cambio no afecta autenticación o fraude.",
+      "No modifica validaciones de negocio."
+    ],
+    "passIfAllTrue": true
+  }
+]
 ```
 
 ---
 
-## 14) ¿Cómo agrego otra pantalla (ej. KPIs)?
+## 🧭 Rutas principales
 
-* Creá `app/kpi/page.tsx` y usá los mismos componentes de UI.
-* Podés leer tus datos de la futura API o mockear con JSON y `policy/`.
+* `/home` – entrada del flujo (ticket + criterios)
+* `/security-panel` – evaluación, framework y decisión
+* `/dashboard` – métricas y estado general
 
 ---
+
+## ✨ Principios
+
+* **Minimalismo**: menos ruido, más decisión.
+* **Trazabilidad**: cada decisión tiene respaldo.
+* **Extensibilidad**: reglas y preguntas en JSON.
