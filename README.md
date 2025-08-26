@@ -82,7 +82,7 @@ flowchart TD
     E --> F[Responder preguntas]
     F --> G[Calcular Score]
     G --> I[Pentest / Revisión / Controles]
-    D --> J[Registrar decisión]
+    D --> J[Registrar y revisar decisión]
     I --> J
     J --> K[Exportar/Sync]
 

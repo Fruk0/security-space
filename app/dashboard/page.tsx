@@ -9,11 +9,12 @@ import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
+import { copyToClipboard } from '@/lib/security/clipboard'
 
 /* =========================================================
  * Helper: portapapeles (con fallback)
  * ======================================================= */
-async function writeClipboard(text: string): Promise<boolean> {
+async function copyToClipboard(text: string): Promise<boolean> {
   if ((window as any).isSecureContext && navigator.clipboard?.writeText) {
     try { await navigator.clipboard.writeText(text); return true } catch {}
   }
@@ -183,7 +184,7 @@ export default function DashboardPage() {
         points: s.points,
       })),
     }
-    const ok = await writeClipboard(JSON.stringify(summary, null, 2))
+    const ok = await copyToClipboard(JSON.stringify(summary, null, 2))
     setCopied(ok ? 'ok' : 'err')
     setTimeout(() => setCopied(null), 1500)
   }
