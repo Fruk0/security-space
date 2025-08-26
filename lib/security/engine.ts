@@ -3,6 +3,8 @@ import type {
   FrameworkDef, FrameworkAnswers, RiskLevelBand, RiskLevelKey
 } from './domain'
 
+import { bandForScore } from './scoring';
+
 /* ===========================
  * Criterios (igual que antes)
  * =========================== */
@@ -32,39 +34,22 @@ export const UNKNOWN_WEIGHT_FACTOR = 1.0
 
 // [PISTA] ¿Aporta riesgo? → “unknown” SIEMPRE cuenta (para rationale/comentarios)
 export function shouldCount(riskWhen: any, a: QA | undefined): boolean {
-  if (!a || !riskWhen) return false
-  if (a === 'unknown') return true // peor caso
-
-  if (Array.isArray(riskWhen)) return riskWhen.includes(a)
-
-  if (riskWhen === 'yes') return a === 'yes'
-  if (riskWhen === 'no') return a === 'no'
-  if (riskWhen === 'unknown') return a === 'unknown'
-  if (riskWhen === 'no_or_unknown') return a === 'no' || a === 'unknown'
-  if (riskWhen === 'yes_or_unknown') return a === 'yes' || a === 'unknown'
-  return false
+  if (!a || !riskWhen) return false;
+  if (a === 'unknown') return true; // peor caso, siempre cuenta para rationale
+  if (riskWhen === 'yes_or_unknown') return a === 'yes';
+  if (riskWhen === 'no_or_unknown')  return a === 'no';
+  return riskWhen === a; // 'yes' o 'no' exacto
 }
 
+
 // [PISTA] Factor de puntaje según respuesta (1 = riesgo total; unknown = factor configurable)
-export function answerRiskFactor(
-  answer: QA | undefined,
-  riskWhen: any,
-  unknownFactor: number = UNKNOWN_WEIGHT_FACTOR
-): number {
-  if (!answer || !riskWhen) return 0
-
-  if (Array.isArray(riskWhen)) {
-    if (riskWhen.includes(answer)) return 1
-  } else {
-    if (riskWhen === 'yes' && answer === 'yes') return 1
-    if (riskWhen === 'no' && answer === 'no') return 1
-    if (riskWhen === 'unknown' && answer === 'unknown') return 1
-    if (riskWhen === 'no_or_unknown' && (answer === 'no' || answer === 'unknown')) return 1
-    if (riskWhen === 'yes_or_unknown' && (answer === 'yes' || answer === 'unknown')) return 1
+export function answerRiskFactor(a: QA | undefined, riskWhen: any): number {
+  if (!a) return 0;
+  if (a === 'unknown') {
+    // Unknown aporta riesgo. Si la regla era 'no', ponderamos con UNKNOWN_WEIGHT_FACTOR.
+    return riskWhen === 'no' ? UNKNOWN_WEIGHT_FACTOR : 1;
   }
-
-  if (answer === 'unknown') return unknownFactor
-  return 0
+  return shouldCount(riskWhen, a) ? 1 : 0;
 }
 
 /* ==========================================
@@ -104,14 +89,15 @@ function resolveRiskLevel(score: number, levels: RiskLevelBand[]): RiskLevelKey 
  * Framework (usa factor + bandas robustas)
  * =========================== */
 export function evalFramework(def: FrameworkDef, levels: RiskLevelBand[], answers: FrameworkAnswers) {
-  // “No sé” suma riesgo (factor configurable)
-  const score = def.questions.reduce((acc, q) => {
-    const factor = answerRiskFactor(answers[q.id], q.riskWhen, UNKNOWN_WEIGHT_FACTOR)
-    return acc + (q.weight * factor)
-  }, 0)
-
-  const level = resolveRiskLevel(score, levels)
-  const allAnswered = Object.keys(answers).length === def.questions.length
-
-  return { score, level, allAnswered }
+  let score = 0;
+  let answered = 0;
+  for (const q of def.questions) {
+    const a = answers[q.id];
+    if (a) answered++;
+    const factor = answerRiskFactor(a, q.riskWhen);
+    score += factor * q.weight;
+  }
+  const allAnswered = answered === def.questions.length;
+  const level = bandForScore(levels, score);
+  return { score, level, allAnswered };
 }

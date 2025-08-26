@@ -38,7 +38,7 @@ export type RiskLevelBand = { key: RiskLevelKey; min: number; max: number; color
 
 // Decisiones
 export type DecisionStatus = 'pending' | 'pass' | 'fail';
-export type DecisionLabel = 'PENDIENTE' | 'PASA' | 'REVISAR' | 'NO PsASA';
+export type DecisionLabel = 'PENDIENTE' | 'PASA' | 'REVISAR' | 'NO PASA';
 
 export type CriterionAnswers = Record<string, QA>;
 export type FrameworkAnswers = Record<string, QA>;
