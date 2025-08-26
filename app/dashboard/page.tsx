@@ -229,13 +229,13 @@ export default function DashboardPage() {
             <CardDescription>Tickets evaluados ({period})</CardDescription>
             <CardTitle className="text-3xl">{data.evaluatedTotal}</CardTitle>
           </CardHeader>
-          <CardContent className="pt-0">
-            <div className="flex items-center gap-2">
-              <RiskPill level="High" value={data.risk.high} />
-              <RiskPill level="Medium" value={data.risk.medium} />
-              <RiskPill level="Low" value={data.risk.low} />
-            </div>
-          </CardContent>
+<CardContent className="pt-0 pb-5 px-2 self-stretch">
+  <div className="flex gap-3 justify-start w-full">
+    <RiskPill level="High" value={data.risk.high} />
+    <RiskPill level="Medium" value={data.risk.medium} />
+    <RiskPill level="Low" value={data.risk.low} />
+  </div>
+</CardContent>
         </Card>
 
         <Card>

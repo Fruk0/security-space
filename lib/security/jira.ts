@@ -41,18 +41,31 @@ export function buildPayload(opts: {
   };
 }
 
-export function buildCommentForCriterion(def: CriterionDef, answers: CriterionAnswers, just: Record<string, string>, notes?: string) {
-  const lines = def.questions
+export function buildCommentForCriterion(
+  def: CriterionDef,
+  answers: CriterionAnswers,
+  just: Record<string, string>,
+  notes?: string
+) {
+  const linesArr = def.questions
     .filter(q => answers[q.id] === 'yes')
-    .map(q => `- ${q.text}\n  ${just[q.id] || '—'}`)
-    .join('\n');
+    .map(q => {
+      const j = (just[q.id] ?? '').trim()
+      const justLine = j ? `  ${j}` : '  —'
+      return `- ${q.text}\n${justLine}`
+    })
+
+  const lines = linesArr.join('\n')
+  const safeBlock = lines.trim().length ? lines : '—' // <- SIEMPRE muestra “—” si quedó vacío
+
   return [
     `Solicito aplicar el **criterio de ciberseguridad**: ${def.title}.`,
     `Respuestas y justificaciones:`,
-    lines || '—',
-    notes ? `Notas: ${notes}` : ''
-  ].filter(Boolean).join('\n\n');
+    safeBlock,
+    notes?.trim() ? `Notas: ${notes.trim()}` : ''
+  ].filter(Boolean).join('\n\n')
 }
+
 
 export function buildCommentForFramework(def: FrameworkDef, answers: FrameworkAnswers, score: number, level: string, allAnswered: boolean, notes?: string) {
   const lines = def.questions
@@ -67,4 +80,42 @@ export function buildCommentForFramework(def: FrameworkDef, answers: FrameworkAn
     lines || '—',
     notes ? `Notas: ${notes}` : ''
   ].filter(Boolean).join('\n\n');
+}
+// --- NUEVO: comentario para "Revisión solicitada" de un criterio --- //
+import type { QA } from './domain' // [PISTA] si ya importás QA en otro lado, omití esta línea
+
+function toAnswerLabel(ans?: QA) {
+  if (ans === 'yes') return 'Aplica'
+  if (ans === 'no') return 'No aplica'
+  if (ans === 'unknown') return 'Duda'
+  return '—'
+}
+
+/**
+ * buildReviewCommentForCriterion
+ * Arma el comentario para Jira cuando se solicita revisión de un criterio.
+ * - Lista TODAS las afirmaciones del criterio (respondidas o no)
+ * - Incluye Respuesta y, si existe, Justificación
+ */
+export function buildReviewCommentForCriterion(
+  def: CriterionDef,
+  answers: CriterionAnswers,
+  just: Record<string, string>,
+  notes?: string
+) {
+  const header = 'Se requiere **revisión del criterio de ciberseguridad**. **No se acepta el criterio** hasta resolver la revisión.\n\n'
+  const titulo = `**Criterio:** ${def.title}\n`
+  const cuerpo = def.questions.map(q => {
+    const ansLabel = toAnswerLabel(answers[q.id])
+    const j = (just[q.id] ?? '').trim()
+    const lines = [
+      `- ${q.text}`,
+      `  - Respuesta: **${ansLabel}**`,
+      j ? `  - Justificación: ${j}` : null
+    ].filter(Boolean)
+    return lines.join('\n')
+  }).join('\n')
+
+  const notas = notes?.trim() ? `\n\n**Notas adicionales:**\n${notes.trim()}` : ''
+  return `${header}${titulo}\n${cuerpo}${notas}`
 }

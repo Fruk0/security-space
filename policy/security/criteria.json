@@ -6,11 +6,11 @@
       "description": "Cambios mínimos en el código (ej: logs, refactors, cambios de dependencias) sin impacto en lógica de negocio ni entidades de entrada/salida, sobre servicios ya revisados por Ciber en versiones anteriores.",
       "passRule": { "type": "allYes" },
       "questions": [
-        { "id": "c1_q1", "text": "¿El cambio es únicamente de tipo PATCH (ej: versión 1.2.3 → 1.2.4)?", "requiresJustificationWhen": ["yes"] },
-        { "id": "c1_q2", "text": "¿El cambio mantiene sin modificaciones entidades, validaciones, lógica de negocio y endpoints?", "requiresJustificationWhen": ["yes"] },
-        { "id": "c1_q3", "text": "¿El servicio ya fue validado previamente por Ciberseguridad?", "requiresJustificationWhen": ["yes"] },
-        { "id": "c1_q4", "text": "¿El servicio está limitado a uso interno, sin exposición directa a usuarios externos?", "requiresJustificationWhen": ["yes"] },
-        { "id": "c1_q5", "text": "¿El cambio evita acceso o transformación de datos sensibles?", "requiresJustificationWhen": ["yes"] }
+        { "id": "c1_q1", "text": "El cambio es **únicamente de tipo PATCH** (ej: versión 1.2.3 → 1.2.4)", "requiresJustificationWhen": ["yes"] },
+        { "id": "c1_q2", "text": "El cambio **mantiene sin modificaciones** entidades, validaciones, lógica de negocio y endpoints.", "requiresJustificationWhen": ["yes"] },
+        { "id": "c1_q3", "text": "El servicio ya fue **validado previamente** por Ciberseguridad.", "requiresJustificationWhen": ["yes"] },
+        { "id": "c1_q4", "text": "El servicio está limitado a **uso interno**, **sin exposición directa a usuarios externos**.", "requiresJustificationWhen": ["yes"] },
+        { "id": "c1_q5", "text": "El cambio **evita** acceso o transformación de datos sensibles.", "requiresJustificationWhen": ["yes"] }
       ]
     },
     {
@@ -19,10 +19,10 @@
       "description": "Servicios que consultan exclusivamente contenido público (FAQs, legales, beneficios, banners), sin requerir autenticación ni permitir modificación de datos.",
       "passRule": { "type": "allYes" },
       "questions": [
-        { "id": "c2_q1", "text": "¿El servicio utiliza exclusivamente el método GET?", "requiresJustificationWhen": ["yes"] },
-        { "id": "c2_q2", "text": "¿El contenido proviene únicamente de Contentful/CDN público?", "requiresJustificationWhen": ["yes"] },
-        { "id": "c2_q3", "text": "¿El servicio funciona sin autenticación ni tokens?", "requiresJustificationWhen": ["yes"] },
-        { "id": "c2_q4", "text": "¿El servicio expone únicamente datos públicos no sensibles?", "requiresJustificationWhen": ["yes"] }
+        { "id": "c2_q1", "text": "El servicio utiliza **exclusivamente** el método **GET**.", "requiresJustificationWhen": ["yes"] },
+        { "id": "c2_q2", "text": "El contenido proviene **únicamente** de **Contentful/CDN público**.", "requiresJustificationWhen": ["yes"] },
+        { "id": "c2_q3", "text": "El servicio funciona **sin autenticación ni tokens**.", "requiresJustificationWhen": ["yes"] },
+        { "id": "c2_q4", "text": "El servicio expone **únicamente datos públicos no sensibles**.", "requiresJustificationWhen": ["yes"] }
       ]
     },
     {
@@ -31,10 +31,10 @@
       "description": "Procesos batch ejecutados en backend, que no exponen endpoints y no operan sobre dinero o datos sensibles de cuenta.",
       "passRule": { "type": "allYes" },
       "questions": [
-        { "id": "c3_q1", "text": "¿Se trata de un proceso batch o job interno (por ejemplo, cron o ejecutable)?", "requiresJustificationWhen": ["yes"] },
-        { "id": "c3_q2", "text": "¿Se ejecuta en capas internas (por ejemplo, BLR), sin exposición por canal?", "requiresJustificationWhen": ["yes"] },
-        { "id": "c3_q3", "text": "¿No accede ni transforma datos de cuentas, tokens o transacciones?", "requiresJustificationWhen": ["yes"] },
-        { "id": "c3_q4", "text": "¿No interactúa con APIs externas ni consume credenciales?", "requiresJustificationWhen": ["yes"] }
+        { "id": "c3_q1", "text": "Se trata de un **proceso batch o job interno** (por ejemplo, cron o ejecutable).", "requiresJustificationWhen": ["yes"] },
+        { "id": "c3_q2", "text": "Se ejecuta en **capas internas** (por ejemplo, BLR), **sin exposición por canal**.", "requiresJustificationWhen": ["yes"] },
+        { "id": "c3_q3", "text": "No accede ni transforma **datos de cuentas, tokens o transacciones**.", "requiresJustificationWhen": ["yes"] },
+        { "id": "c3_q4", "text": "No interactúa con **APIs externas** ni consume **credenciales**.", "requiresJustificationWhen": ["yes"] }
       ]
     },
     {
@@ -43,9 +43,41 @@
       "description": "Servicios que ya fueron evaluados y no presentan cambios ni en versiones, ni en contratos de entrada/salida.",
       "passRule": { "type": "allYes" },
       "questions": [
-        { "id": "c4_q1", "text": "¿El servicio mantiene sin cambios la versión, el contrato y la lógica?", "requiresJustificationWhen": ["yes"] },
-        { "id": "c4_q2", "text": "¿No se agregan nuevos parámetros, headers ni operaciones?", "requiresJustificationWhen": ["yes"] },
-        { "id": "c4_q3", "text": "¿El servicio ya fue validado previamente por Ciberseguridad?", "requiresJustificationWhen": ["yes"] }
+        { "id": "c4_q1", "text": "El servicio mantiene **sin cambios** la versión, el contrato y la lógica.", "requiresJustificationWhen": ["yes"] },
+        { "id": "c4_q2", "text": "No se agregan **nuevos parámetros, headers ni operaciones**.", "requiresJustificationWhen": ["yes"] },
+        { "id": "c4_q3", "text": "El servicio ya fue validado previamente por **Ciberseguridad**.", "requiresJustificationWhen": ["yes"] }
+      ]
+    },
+    {
+      "id": "C5",
+      "title": "Criterio 5 – Hotfix sin relación a fraude",
+      "description": "Hotfix aplicados en producción que no corrigen incidentes de fraude ni afectan controles de seguridad críticos.",
+      "passRule": { "type": "allYes" },
+      "questions": [
+        { "id": "c5_q1", "text": "El hotfix **no está relacionado** con fraude, autenticación ni con **controles críticos de seguridad**.", "requiresJustificationWhen": ["yes"] },
+        { "id": "c5_q2", "text": "El cambio documentado es **puramente correctivo** y **no impacta** validaciones de negocio.", "requiresJustificationWhen": ["yes"] }
+      ]
+    },
+    {
+      "id": "C6",
+      "title": "Criterio 6 – Cambios en Frontend sin impacto crítico",
+      "description": "Modificaciones en la capa frontend que no afectan seguridad ni validaciones del backend.",
+      "passRule": { "type": "allYes" },
+      "questions": [
+        { "id": "c6_q1", "text": "El cambio en frontend es **únicamente visual** (UI/UX, textos, estilos).", "requiresJustificationWhen": ["yes"] },
+        { "id": "c6_q2", "text": "El cambio **no incorpora librerías nuevas** que manejen **autenticación, criptografía o comunicación**.", "requiresJustificationWhen": ["yes"] },
+        { "id": "c6_q3", "text": "El cambio **no afecta** el almacenamiento ni el manejo de **tokens o credenciales**.", "requiresJustificationWhen": ["yes"] }
+      ]
+    },
+    {
+      "id": "C7",
+      "title": "Criterio 7 – Backoffice de uso interno",
+      "description": "Servicios o aplicaciones de backoffice internos, de acceso restringido, que no operan sobre transacciones críticas ni exponen información sensible hacia fuera.",
+      "passRule": { "type": "allYes" },
+      "questions": [
+        { "id": "c7_q1", "text": "El servicio es de **uso exclusivo interno** y tiene acceso restringido mediante **autenticación**.", "requiresJustificationWhen": ["yes"] },
+        { "id": "c7_q2", "text": "El cambio **no afecta procesos financieros críticos** ni implica **riesgo de fraude**.", "requiresJustificationWhen": ["yes"] },
+        { "id": "c7_q3", "text": "El servicio **no está expuesto públicamente** a Internet.", "requiresJustificationWhen": ["yes"] }
       ]
     }
   ]
