@@ -131,7 +131,7 @@ function evalCriterion(answers: Record<string, QA>) {
     return { status: 'fail' as const, label: 'REVISAR' }
   }
 
-  return { status: 'fail' as const, label: 'NO PASA' }
+  return { status: 'fail' as const, label: 'NPASAO ' }
 }
 
   const answeredCount = useMemo(() => Object.keys(answers).length, [answers])
