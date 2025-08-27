@@ -6,11 +6,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 
 type Props = {
-  // flags de visibilidad (vienen de tu page)
   showAccepted: boolean
   showReviewRequested: boolean
-
-  // comportamiento del botón de "Copiar comentario Jira"
   onCopyJiraComment?: () => void | Promise<void>
   copiedComment?: 'ok' | 'err' | null
 }

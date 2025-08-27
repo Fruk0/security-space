@@ -4,7 +4,6 @@ import * as React from 'react'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge' // por si luego lo querés usar
 import { cn } from '@/lib/utils'
 import { Copy, ExternalLink, Pencil, CheckCircle2 } from 'lucide-react'
 
@@ -13,13 +12,9 @@ type Props = {
   isJiraKeyValid: boolean
   ticketConfirmed: boolean
   jiraUrl?: string | null
-
-  // callbacks/acciones
   onChangeKey: (value: string) => void
   onConfirm: () => void
   onChangeTicket: () => void
-
-  // utilidades existentes en tu page
   copyTicketKey: () => void | Promise<void>
   copiedKey?: string | null
 }

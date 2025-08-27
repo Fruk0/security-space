@@ -31,24 +31,17 @@ type Snapshot = {
 }
 
 type Props = {
-  // Estado actual
   CRITERIA: CriterionDef[]
   selectedCriterion: CriterionDef | null
   critAnswers: Record<string, QA>
   critJustifications: Record<string, string>
-
-  // Estado de evaluación ya calculado en el padre
-  selectedEvalLabel: string // p.ej. 'ACEPTAR', 'REVISAR', etc. (texto final a mostrar)
-  statusBadgeClass: string  // p.ej. cn('shrink-0', badgeColor(selectedEval.label))
+  selectedEvalLabel: string
+  statusBadgeClass: string
   selectedReadyToAccept: boolean
-
-  // Acciones que ya tenés en el padre
   onGoToFramework: () => void
   onSelectCriterionId: (id: string | null) => void
   onSetAnswer: (qid: string, value: QA) => void
   onSetJustification: (qid: string, value: string) => void
-
-  // Botón grande dinámico (Aceptar / Solicitar revisión / Descartar)
   onAcceptByCriterion: (snap: Snapshot) => void
   onRequestReview: (snap: Snapshot) => void
   onDiscardToFramework: () => void
@@ -73,7 +66,6 @@ export default function CriteriaSection(props: Props) {
   } = props
 
   if (!selectedCriterion) {
-    // === Vista de GALERÍA de criterios ===
     return (
       <>
         <div className="flex items-center justify-between">
@@ -83,10 +75,7 @@ export default function CriteriaSection(props: Props) {
               Si alguno aplica, seleccioná el criterio para responder sus afirmaciones. Si no aplica, salteá al framework.
             </p>
           </div>
-          <Button
-            variant="default"
-            onClick={onGoToFramework}
-          >
+          <Button variant="default" onClick={onGoToFramework}>
             No aplica / Ir al framework
           </Button>
         </div>
@@ -99,7 +88,9 @@ export default function CriteriaSection(props: Props) {
                 {c.description && <CardDescription>{c.description}</CardDescription>}
               </CardHeader>
               <CardContent className="flex items-center justify-between pt-0">
-                <Button variant="secondary" onClick={() => onSelectCriterionId(c.id)}>Usar este criterio</Button>
+                <Button variant="secondary" onClick={() => onSelectCriterionId(c.id)}>
+                  Usar este criterio
+                </Button>
               </CardContent>
             </Card>
           ))}
@@ -108,7 +99,6 @@ export default function CriteriaSection(props: Props) {
     )
   }
 
-  // === Vista de FORMULARIO del criterio seleccionado ===
   const answered = Object.keys(critAnswers).length > 0
 
   const handlePrimaryAction = () => {
@@ -147,12 +137,9 @@ export default function CriteriaSection(props: Props) {
             </p>
           )}
         </div>
-        <Badge className={statusBadgeClass}>
-          {selectedEvalLabel}
-        </Badge>
+        <Badge className={statusBadgeClass}>{selectedEvalLabel}</Badge>
       </div>
 
-      {/* Preguntas del criterio seleccionado */}
       <div className="space-y-3">
         {selectedCriterion.questions.map((q) => (
           <div key={q.id} className="flex flex-col gap-2 border rounded-lg p-3">
@@ -179,16 +166,20 @@ export default function CriteriaSection(props: Props) {
               </div>
             </RadioGroup>
 
-            {/* Justificación obligatoria si Aplica */}
             {critAnswers[q.id] === 'yes' && q.requiresJustificationWhen?.includes('yes') && (
               <div className="mt-2">
-                <Label htmlFor={`${q.id}-crit-just`} className="text-xs">Justificación</Label>
+                <Label htmlFor={`${q.id}-crit-just`} className="text-xs">
+                  Justificación
+                </Label>
                 <Textarea
                   id={`${q.id}-crit-just`}
                   placeholder="Explicá brevemente por qué aplica…"
                   value={critJustifications[q.id] ?? ''}
                   onChange={(e) => onSetJustification(q.id, e.target.value)}
-                  className={cn('min-h-[32px] py-1 text-sm', !critJustifications[q.id]?.trim() && 'ring-1 ring-rose-500')}
+                  className={cn(
+                    'min-h-[32px] py-1 text-sm',
+                    !critJustifications[q.id]?.trim() && 'ring-1 ring-rose-500'
+                  )}
                 />
               </div>
             )}
@@ -196,7 +187,6 @@ export default function CriteriaSection(props: Props) {
         ))}
       </div>
 
-      {/* Botonera dinámica */}
       <div className="flex flex-wrap items-center gap-3">
         <Button onClick={() => onSelectCriterionId(null)} variant="secondary">
           Volver a criterios
@@ -206,13 +196,19 @@ export default function CriteriaSection(props: Props) {
           onClick={handlePrimaryAction}
           className={cn(
             selectedReadyToAccept && 'bg-emerald-600 hover:bg-emerald-700 text-white',
-            !selectedReadyToAccept && selectedEvalLabel === 'REVISAR' && 'bg-amber-600 hover:bg-amber-700 text-white'
+            !selectedReadyToAccept &&
+              selectedEvalLabel === 'REVISAR' &&
+              'bg-amber-600 hover:bg-amber-700 text-white'
           )}
-          variant={selectedReadyToAccept ? 'default' : (selectedEvalLabel === 'REVISAR' ? 'default' : 'destructive')}
+          variant={
+            selectedReadyToAccept ? 'default' : selectedEvalLabel === 'REVISAR' ? 'default' : 'destructive'
+          }
         >
           {selectedReadyToAccept
             ? 'Aceptar por criterio'
-            : (selectedEvalLabel === 'REVISAR' ? 'Solicitar revisión de criterio' : 'Descartar e ir al framework')}
+            : selectedEvalLabel === 'REVISAR'
+            ? 'Solicitar revisión de criterio'
+            : 'Descartar e ir al framework'}
         </Button>
       </div>
     </>

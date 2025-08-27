@@ -10,16 +10,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { cn } from '@/lib/utils'
 import type { QA } from '@/lib/security/domain'
 
-type FrameworkQuestion = {
-  id: string
-  text: string
-  riskType: string
-  weight: number
-}
-
-type FrameworkDef = {
-  questions: FrameworkQuestion[]
-}
+type FrameworkQuestion = { id: string; text: string; riskType: string; weight: number }
+type FrameworkDef = { questions: FrameworkQuestion[] }
 
 type Props = {
   FRAMEWORK: FrameworkDef
@@ -50,7 +42,9 @@ export default function FrameworkSection({
             Respondé Sí / No / No sé. El score se calcula automáticamente.
           </p>
         </div>
-        <Badge className={cn('text-white', levelColor)}>{level} • {score} pts</Badge>
+        <Badge className={cn('text-white', levelColor)}>
+          {level} • {score} pts
+        </Badge>
       </div>
 
       <Progress value={progressPct} />
@@ -62,7 +56,9 @@ export default function FrameworkSection({
               <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                   <span className="font-medium">{q.text}</span>
-                  <Badge variant="secondary">{q.riskType} · +{q.weight}</Badge>
+                  <Badge variant="secondary">
+                    {q.riskType} · +{q.weight}
+                  </Badge>
                 </div>
 
                 <RadioGroup
