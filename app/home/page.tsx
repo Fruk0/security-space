@@ -13,7 +13,10 @@ import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 import ReactMarkdown from 'react-markdown'
 import { ArrowLeft, CheckCircle2, Copy, ExternalLink, Pencil } from 'lucide-react'
-
+import TicketForm from '@/components/security/TicketForm'
+import CriteriaSection from '@/components/security/CriteriaSection'
+import CriteriaStatusCards from '@/components/security/CriteriaStatusCards'
+import FrameworkSection from '@/components/security/FrameworkSection'
 import { loadCriteria, loadFramework, loadLevels } from '@/lib/security/policy'
 import type { QA, CriterionDef, CriterionAnswers, DecisionStatus, DecisionLabel } from '@/lib/security/domain'
 import { evalCriterion, evalFramework } from '@/lib/security/engine'
@@ -294,315 +297,86 @@ export default function SecuritySpaceRiskCalculator() {
         </CardHeader>
 
         <CardContent className="space-y-6">
-          {/* Ticket */}
-          {!ticketConfirmed ? (
-            <div className="grid gap-4 md:grid-cols-3 items-end">
-              <div className="md:col-span-2">
-                <Label htmlFor="jira">Ticket de Jira (KEY)</Label>
-                <Input
-                  id="jira"
-                  placeholder="CS-123"
-                  value={jiraKey}
-                  onChange={e => setJiraKey(e.target.value.toUpperCase())}
-                  className={cn(!isJiraKeyValid && jiraKey ? 'ring-1 ring-rose-500' : '')}
-                />
-                {jiraKey && !isJiraKeyValid && (
-                  <p className="mt-1 text-xs text-rose-600">
-                    Formato esperado: ABC-123 o ABCD-123 (máx 4 letras, guión y número).
-                  </p>
-                )}
-              </div>
-              <Button variant="default" disabled={!isJiraKeyValid} onClick={() => setTicketConfirmed(true)}>
-                Confirmar ticket
-              </Button>
-            </div>
-          ) : (
-            <div className="rounded-md border bg-muted/40 px-3 py-2 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" aria-hidden="true" />
-                <div className="leading-tight">
-                  <div className="text-xs text-muted-foreground">Ticket confirmado</div>
-                  <div className="font-semibold tracking-tight">
-                    <span className="font-mono">{jiraKey}</span>
-                  </div>
-                </div>
-              </div>
+{/* Ticket */}
+<TicketForm
+  jiraKey={jiraKey}
+  isJiraKeyValid={isJiraKeyValid}
+  ticketConfirmed={ticketConfirmed}
+  jiraUrl={jiraUrl}
+  onChangeKey={(v) => setJiraKey(v.toUpperCase())}
+  onConfirm={() => setTicketConfirmed(true)}
+  onChangeTicket={resetAll}
+  copyTicketKey={copyTicketKey}
+  copiedKey={copiedKey}
+/>
+        {/* Criterios (opcional) mientras no se eligió flujo */}
+        {ticketConfirmed && criterionPass === 'pending' && !criterionReviewRequested && (
+          <div className="space-y-4">
+            <CriteriaSection
+              CRITERIA={CRITERIA}
+              selectedCriterion={selectedCriterion}
+              critAnswers={critAnswers}
+              critJustifications={critJustifications}
 
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={copyTicketKey}
-                  title="Copiar KEY"
-                  aria-label="Copiar KEY"
-                >
-                  <Copy className="h-4 w-4 mr-2" />
-                  {copiedKey === 'ok' ? 'Copiado' : 'Copiar'}
-                </Button>
+              // Estos dos salen de tu lógica actual:
+              selectedEvalLabel={displayLabel(selectedEval.label)}
+              statusBadgeClass={cn('shrink-0', badgeColor(selectedEval.label))}
+              selectedReadyToAccept={selectedReadyToAccept}
 
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  asChild
-                  disabled={!jiraUrl}
-                  title={jiraUrl ? 'Abrir en Jira' : 'Configura NEXT_PUBLIC_JIRA_BASE_URL'}
-                  aria-label="Abrir en Jira"
-                >
-                  <a href={jiraUrl ?? '#'} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Abrir
-                  </a>
-                </Button>
+              // Acciones existentes en tu page:
+              onGoToFramework={() => {
+                setCriterionPass('fail')
+                setSelectedCriterionId(null)
+                setAcceptedCriterionId(null)
+                setCriterionReviewRequested(false)
+                setReviewSnapshot(null)
+              }}
+              onSelectCriterionId={(id) => setSelectedCriterionId(id)}
+              onSetAnswer={(qid, v) => setCritAnswer(qid, v)}
+              onSetJustification={(qid, txt) => setCritJustifications(prev => ({ ...prev, [qid]: txt }))}
 
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={resetAll}
-                  title="Cambiar ticket"
-                  aria-label="Cambiar ticket"
-                >
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Cambiar
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Criterios (opcional) mientras no se eligió flujo */}
-          {ticketConfirmed && criterionPass === 'pending' && !criterionReviewRequested && (
-            <div className="space-y-4">
-              {!selectedCriterion ? (
-                <>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-semibold">Criterios (opcional)</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Si alguno aplica, seleccioná el criterio para responder sus afirmaciones. Si no aplica, salteá al framework.
-                      </p>
-                    </div>
-                    <Button
-                      variant="default"
-                      onClick={() => {
-                        setCriterionPass('fail')
-                        setSelectedCriterionId(null)
-                        setAcceptedCriterionId(null)
-                        setCriterionReviewRequested(false)
-                        setReviewSnapshot(null)
-                      }}
-                    >
-                      No aplica / Ir al framework
-                    </Button>
-                  </div>
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {CRITERIA.map((c) => (
-                      <Card key={c.id} className="border">
-                        <CardHeader className="py-4">
-                          <CardTitle className="text-base">{c.title}</CardTitle>
-                          {c.description && <CardDescription>{c.description}</CardDescription>}
-                        </CardHeader>
-                        <CardContent className="flex items-center justify-between pt-0">
-                          <Button variant="secondary" onClick={() => setSelectedCriterionId(c.id)}>Usar este criterio</Button>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 space-y-1">
-                      <h3 className="text-lg font-semibold">{selectedCriterion.title}</h3>
-                      {selectedCriterion.description && (
-                        <p className="text-sm text-muted-foreground break-words">
-                          {selectedCriterion.description}
-                        </p>
-                      )}
-                    </div>
-                    <Badge className={cn('shrink-0', badgeColor(selectedEval.label))}>
-                      {displayLabel(selectedEval.label)}
-                    </Badge>
-                  </div>
-
-                  {/* Preguntas del criterio seleccionado */}
-                  <div className="space-y-3">
-                    {selectedCriterion.questions.map((q) => (
-                      <div key={q.id} className="flex flex-col gap-2 border rounded-lg p-3">
-                        <div className="prose prose-sm dark:prose-invert font-medium">
-                          <ReactMarkdown>{String(q.text ?? '')}</ReactMarkdown>
-                        </div>
-
-                        <RadioGroup
-                          className="flex gap-6"
-                          value={critAnswers[q.id] ?? ''}
-                          onValueChange={(v: string) => setCritAnswer(q.id, v as QA)}
-                        >
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem id={`${q.id}-yes`} value="yes" />
-                            <Label htmlFor={`${q.id}-yes`}>Aplica</Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem id={`${q.id}-no`} value="no" />
-                            <Label htmlFor={`${q.id}-no`}>No aplica</Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem id={`${q.id}-unknown`} value="unknown" />
-                            <Label htmlFor={`${q.id}-unknown`}>Duda</Label>
-                          </div>
-                        </RadioGroup>
-
-                        {/* Justificación obligatoria si Aplica */}
-                        {critAnswers[q.id] === 'yes' && q.requiresJustificationWhen?.includes('yes') && (
-                          <div className="mt-2">
-                            <Label htmlFor={`${q.id}-crit-just`} className="text-xs">Justificación</Label>
-                            <Textarea
-                              id={`${q.id}-crit-just`}
-                              placeholder="Explicá brevemente por qué aplica…"
-                              value={critJustifications[q.id] ?? ''}
-                              onChange={(e) => setCritJustifications(prev => ({ ...prev, [q.id]: e.target.value }))}
-                              className={cn('min-h-[32px] py-1 text-sm', !critJustifications[q.id]?.trim() && 'ring-1 ring-rose-500')}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Botonera dinámica */}
-                  <div className="flex flex-wrap items-center gap-3">
-                    <Button onClick={() => setSelectedCriterionId(null)} variant="secondary">Volver a criterios</Button>
-
-                    <Button
-                      onClick={() => {
-                        if (!selectedCriterion) return
-
-                        if (selectedReadyToAccept) {
-                          setAcceptedSnapshot({
-                            def: selectedCriterion,
-                            answers: { ...critAnswers },
-                            justifications: { ...critJustifications }
-                          })
-                          setAcceptedCriterionId(selectedCriterion.id)
-                          setCriterionPass('pass')
-                          setSelectedCriterionId(null)
-                          setCriterionReviewRequested(false)
-                          setReviewSnapshot(null)
-                          return
-                        }
-
-                        if (selectedEval.label === 'REVISAR') {
-                          const answered = Object.keys(critAnswers).length > 0
-                          if (!answered) return
-                          setCriterionReviewRequested(true)
-                          setReviewSnapshot({
-                            def: selectedCriterion,
-                            answers: { ...critAnswers },
-                            justifications: { ...critJustifications }
-                          })
-                          setSelectedCriterionId(null)
-                          return
-                        }
-
-                        setCriterionPass('fail')
-                        setSelectedCriterionId(null)
-                        setAcceptedCriterionId(null)
-                        setCriterionReviewRequested(false)
-                        setReviewSnapshot(null)
-                      }}
-                      className={cn(
-                        selectedReadyToAccept && 'bg-emerald-600 hover:bg-emerald-700 text-white',
-                        !selectedReadyToAccept && selectedEval.label === 'REVISAR' && 'bg-amber-600 hover:bg-amber-700 text-white'
-                      )}
-                      variant={selectedReadyToAccept ? 'default' : (selectedEval.label === 'REVISAR' ? 'default' : 'destructive')}
-                    >
-                      {selectedReadyToAccept
-                        ? 'Aceptar por criterio'
-                        : (selectedEval.label === 'REVISAR' ? 'Solicitar revisión de criterio' : 'Descartar e ir al framework')}
-                    </Button>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Mensaje Aceptado por criterio */}
-          {ticketConfirmed && criterionPass === 'pass' && (
-            <Card className="border border-emerald-600/40 bg-emerald-50 dark:bg-emerald-950/20">
-              <CardContent className="py-4">
-                <div className="flex items-center gap-2">
-                  <Badge className="bg-emerald-600 text-white">Aceptado</Badge>
-                  <span className="text-sm">Ticket aceptado por <strong>criterio de ciberseguridad</strong>.</span>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Mensaje Revisión solicitada por criterio */}
-          {ticketConfirmed && criterionPass === 'pending' && criterionReviewRequested && (
-            <Card className="border border-amber-600/40 bg-amber-50 dark:bg-amber-950/20">
-              <CardContent className="py-4">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <Badge className="bg-amber-600 text-white">Revisión solicitada</Badge>
-                    <span className="text-sm">
-                      Se requiere <strong>revisión del criterio de ciberseguridad</strong>.
-                    </span>
-                  </div>
-                  <Button onClick={copyJiraComment} className="bg-amber-600 hover:bg-amber-700 text-white shrink-0">
-                    {copiedComment === 'ok' ? 'Copiado' : copiedComment === 'err' ? 'Error ❌' : 'Copiar comentario Jira'}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+              onAcceptByCriterion={(snap) => {
+                setAcceptedSnapshot(snap)
+                setAcceptedCriterionId(snap.def.id)
+                setCriterionPass('pass')
+                setSelectedCriterionId(null)
+                setCriterionReviewRequested(false)
+                setReviewSnapshot(null)
+              }}
+              onRequestReview={(snap) => {
+                setCriterionReviewRequested(true)
+                setReviewSnapshot(snap)
+                setSelectedCriterionId(null)
+              }}
+              onDiscardToFramework={() => {
+                setCriterionPass('fail')
+                setSelectedCriterionId(null)
+                setAcceptedCriterionId(null)
+                setCriterionReviewRequested(false)
+                setReviewSnapshot(null)
+              }}
+            />
+          </div>
+        )}
+          <CriteriaStatusCards
+            showAccepted={ticketConfirmed && criterionPass === 'pass'}
+            showReviewRequested={ticketConfirmed && criterionPass === 'pending' && criterionReviewRequested}
+            onCopyJiraComment={copyJiraComment}
+            copiedComment={copiedComment}
+          />
 
           {/* Framework de riesgo */}
           {showFramework && (
-            <div className="space-y-6">
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <h3 className="text-lg font-semibold">Framework de Security Risk</h3>
-                  <p className="text-sm text-muted-foreground">Respondé Sí / No / No sé. El score se calcula automáticamente.</p>
-                </div>
-                <Badge className={cn('text-white', levelColor)}>{level} • {score} pts</Badge>
-              </div>
-
-              <Progress value={progressPct} />
-
-              <div className="space-y-4">
-                {FRAMEWORK.questions.map((q) => (
-                  <Card key={q.id} className="border">
-                    <CardContent className="pt-6">
-                      <div className="flex flex-col gap-3">
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium">{q.text}</span>
-                          <Badge variant="secondary">{q.riskType} · +{q.weight}</Badge>
-                        </div>
-
-                        <RadioGroup className="flex gap-6" value={answers[q.id] ?? ''} onValueChange={(v: string) => setAnswer(q.id, v as QA)}>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem id={`${q.id}-yes`} value="yes" />
-                            <Label htmlFor={`${q.id}-yes`}>Sí</Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem id={`${q.id}-no`} value="no" />
-                            <Label htmlFor={`${q.id}-no`}>No</Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem id={`${q.id}-unknown`} value="unknown" />
-                            <Label htmlFor={`${q.id}-unknown`}>No sé</Label>
-                          </div>
-                        </RadioGroup>
-
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
+            <FrameworkSection
+              FRAMEWORK={FRAMEWORK}
+              level={level}
+              score={score}
+              levelColor={levelColor}
+              progressPct={progressPct}
+              answers={answers}
+              onSetAnswer={(qid, v) => setAnswer(qid, v as QA)}
+            />
           )}
-
           {/* Sticky de criterio (en vivo) */}
           {ticketConfirmed && criterionPass === 'pending' && selectedCriterion && (
             <div className="fixed bottom-6 right-6 z-50">
